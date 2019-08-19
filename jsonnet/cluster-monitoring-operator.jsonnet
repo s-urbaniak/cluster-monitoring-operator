@@ -59,5 +59,15 @@ local k = import 'ksonnet/ksonnet.beta.3/k.libsonnet';
       clusterRole.new() +
       clusterRole.mixin.metadata.withName('cluster-monitoring-view') +
       clusterRole.withRules(rules),
+
+    // This is for the additional trust CA bundle
+    configMap:
+      local configmap = k.core.v1.configMap;
+
+      configmap.new('trusted-ca-bundle', { 'ca-bundle.crt': '' }) +
+      configmap.mixin.metadata.withNamespace($._config.namespace) +
+      configmap.mixin.metadata.withLabels({ 'config.openshift.io/inject-trusted-cabundle': 'true' }),
+
+
   },
 }
