@@ -1798,9 +1798,10 @@ func (f *Factory) TelemeterClientDeployment(proxyCABundleCM *v1.ConfigMap) (*app
 	d.Namespace = f.namespace
 	if proxyCABundleCM != nil {
 		yes := true
+		trustedCABundle := "trusted-ca-bundle"
 		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts,
 			v1.VolumeMount{
-				Name:      proxyCABundleCM.Name,
+				Name:      trustedCABundle,
 				ReadOnly:  true,
 				MountPath: "/etc/pki/ca-trust/extracted/pem/",
 			},
@@ -1808,7 +1809,7 @@ func (f *Factory) TelemeterClientDeployment(proxyCABundleCM *v1.ConfigMap) (*app
 
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes,
 			v1.Volume{
-				Name: proxyCABundleCM.Name,
+				Name: trustedCABundle,
 				VolumeSource: v1.VolumeSource{
 					ConfigMap: &v1.ConfigMapVolumeSource{
 						LocalObjectReference: v1.LocalObjectReference{
