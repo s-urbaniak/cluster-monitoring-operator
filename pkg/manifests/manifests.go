@@ -131,6 +131,7 @@ var (
 	ClusterMonitoringOperatorService        = "assets/cluster-monitoring-operator/service.yaml"
 	ClusterMonitoringOperatorServiceMonitor = "assets/cluster-monitoring-operator/service-monitor.yaml"
 	ClusterMonitoringClusterRole            = "assets/cluster-monitoring-operator/cluster-role.yaml"
+	ClusterMonitoringConfigMap              = "assets/cluster-monitoring-operator/config-map.yaml"
 
 	TelemeterClientClusterRole            = "assets/telemeter-client/cluster-role.yaml"
 	TelemeterClientClusterRoleBinding     = "assets/telemeter-client/cluster-role-binding.yaml"
@@ -1387,6 +1388,15 @@ func (f *Factory) ClusterMonitoringClusterRole() (*rbacv1.ClusterRole, error) {
 	return cr, nil
 }
 
+func (f *Factory) ClusterMonitoringOperatorConfigMap() (*v1.ConfigMap, error) {
+	cm, err := f.NewConfigMap(MustAssetReader(ClusterMonitoringConfigMap))
+	if err != nil {
+		return nil, err
+	}
+
+	return cm, nil
+}
+
 func (f *Factory) ClusterMonitoringOperatorService() (*v1.Service, error) {
 	s, err := f.NewService(MustAssetReader(ClusterMonitoringOperatorService))
 	if err != nil {
@@ -1745,7 +1755,7 @@ func (f *Factory) TelemeterClientServiceMonitor() (*monv1.ServiceMonitor, error)
 }
 
 // TelemeterClientDeployment generates a new Deployment for Telemeter client.
-func (f *Factory) TelemeterClientDeployment() (*appsv1.Deployment, error) {
+func (f *Factory) TelemeterClientDeployment(proxyCABundleCM *v1.ConfigMap) (*appsv1.Deployment, error) {
 	d, err := f.NewDeployment(MustAssetReader(TelemeterClientDeployment))
 	if err != nil {
 		return nil, err
@@ -1786,7 +1796,35 @@ func (f *Factory) TelemeterClientDeployment() (*appsv1.Deployment, error) {
 		d.Spec.Template.Spec.Tolerations = f.config.TelemeterClientConfig.Tolerations
 	}
 	d.Namespace = f.namespace
+	if proxyCABundleCM != nil {
+		yes := true
+		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts,
+			v1.VolumeMount{
+				Name:      proxyCABundleCM.Name,
+				ReadOnly:  true,
+				MountPath: "/etc/pki/ca-trust/extracted/pem/",
+			},
+		)
 
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes,
+			v1.Volume{
+				Name: proxyCABundleCM.Name,
+				VolumeSource: v1.VolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: proxyCABundleCM.Name,
+						},
+						Items: []v1.KeyToPath{
+							{
+								Key:  "ca-bundle.crt",
+								Path: "tls-ca-bundle.pem",
+							},
+						},
+						Optional: &yes,
+					},
+				},
+			})
+	}
 	return d, nil
 }
 
@@ -2053,4 +2091,41 @@ func NewSecurityContextConstraints(manifest io.Reader) (*securityv1.SecurityCont
 	}
 
 	return &s, nil
+}
+
+func (f *Factory) TelemeterConfigmapHash(caBundleCM *v1.ConfigMap) (*v1.ConfigMap, error) {
+	// Copy the CA Bundle ConfigMap to new CM but change name to append the hash.
+	// ca-bundle.crt is the key that.
+
+	data := make(map[string]string)
+	r := newErrMapReader(data)
+
+	for k, v := range caBundleCM.Data {
+		data[k] = v
+	}
+
+	var caBundle = r.value("ca-bundle.crt")
+	if r.Error() != nil {
+		// TODO: Should we reuturn a NotExists error here instead, so we can check against that and continue.
+		return nil, errors.Wrap(r.err, "value not found in extension api server authentication configmap")
+	}
+
+	h := fnv.New64()
+	h.Write([]byte(caBundle))
+	hash := strconv.FormatUint(h.Sum64(), 32)
+
+	return &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "openshift-monitoring",
+			Name:      fmt.Sprintf("trusted-ca-bundle-%s", hash),
+			Labels: map[string]string{
+				"monitoring.openshift.io/name": "telemeter",
+				"monitoring.openshift.io/hash": hash,
+			},
+		},
+		Data: map[string]string{
+			"ca-bundle.crt": caBundle,
+		},
+	}, nil
+
 }
