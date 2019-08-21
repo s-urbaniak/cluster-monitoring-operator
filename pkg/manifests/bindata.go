@@ -10,6 +10,7 @@
 // assets/alertmanager/service-monitor.yaml
 // assets/alertmanager/service.yaml
 // assets/cluster-monitoring-operator/cluster-role.yaml
+// assets/cluster-monitoring-operator/config-map.yaml
 // assets/cluster-monitoring-operator/service-monitor.yaml
 // assets/cluster-monitoring-operator/service.yaml
 // assets/grafana/cluster-role-binding.yaml
@@ -355,6 +356,26 @@ func assetsClusterMonitoringOperatorClusterRoleYaml() (*asset, error) {
 	}
 
 	info := bindataFileInfo{name: "assets/cluster-monitoring-operator/cluster-role.yaml", size: 173, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _assetsClusterMonitoringOperatorConfigMapYaml = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x44\xcd\x31\x0e\xc2\x30\x0c\x85\xe1\x3d\xa7\xb0\xb2\xa7\x88\xd5\x2b\x33\x2b\xbb\x9b\xb8\xc5\xd0\xda\x51\xe2\x72\x7e\x04\x14\xd8\x2c\xf9\xd3\xff\xa8\xca\x85\x5b\x17\x53\x84\xc7\x31\x14\x72\xc2\x00\x90\x29\x8d\x9b\x96\x85\x87\xdc\x1c\x21\xc6\x70\x17\x2d\x08\x27\xd3\x49\xe6\x33\xd5\xb0\xb2\xd3\x57\x2f\x34\xf2\xd2\x5f\x17\x40\x7e\x8b\xc1\x2a\x6b\xbf\xca\xe4\x83\xd8\x41\xf4\xc6\xd9\x93\xb7\xad\x3b\x97\x94\xe9\xd3\x46\x88\xde\x36\x8e\x01\x40\x69\x65\x84\x3f\xd8\xd7\xf7\x4f\xaf\x94\x19\xe1\xd7\x4c\xab\xa9\xb8\x35\xd1\x39\x3c\x03\x00\x00\xff\xff\x17\xf7\xfe\x07\xc1\x00\x00\x00")
+
+func assetsClusterMonitoringOperatorConfigMapYamlBytes() ([]byte, error) {
+	return bindataRead(
+		_assetsClusterMonitoringOperatorConfigMapYaml,
+		"assets/cluster-monitoring-operator/config-map.yaml",
+	)
+}
+
+func assetsClusterMonitoringOperatorConfigMapYaml() (*asset, error) {
+	bytes, err := assetsClusterMonitoringOperatorConfigMapYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "assets/cluster-monitoring-operator/config-map.yaml", size: 193, mode: os.FileMode(420), modTime: time.Unix(1, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -2061,6 +2082,7 @@ var _bindata = map[string]func() (*asset, error){
 	"assets/alertmanager/service-monitor.yaml": assetsAlertmanagerServiceMonitorYaml,
 	"assets/alertmanager/service.yaml": assetsAlertmanagerServiceYaml,
 	"assets/cluster-monitoring-operator/cluster-role.yaml": assetsClusterMonitoringOperatorClusterRoleYaml,
+	"assets/cluster-monitoring-operator/config-map.yaml": assetsClusterMonitoringOperatorConfigMapYaml,
 	"assets/cluster-monitoring-operator/service-monitor.yaml": assetsClusterMonitoringOperatorServiceMonitorYaml,
 	"assets/cluster-monitoring-operator/service.yaml": assetsClusterMonitoringOperatorServiceYaml,
 	"assets/grafana/cluster-role-binding.yaml": assetsGrafanaClusterRoleBindingYaml,
@@ -2199,6 +2221,7 @@ var _bintree = &bintree{nil, map[string]*bintree{
 		}},
 		"cluster-monitoring-operator": &bintree{nil, map[string]*bintree{
 			"cluster-role.yaml": &bintree{assetsClusterMonitoringOperatorClusterRoleYaml, map[string]*bintree{}},
+			"config-map.yaml": &bintree{assetsClusterMonitoringOperatorConfigMapYaml, map[string]*bintree{}},
 			"service-monitor.yaml": &bintree{assetsClusterMonitoringOperatorServiceMonitorYaml, map[string]*bintree{}},
 			"service.yaml": &bintree{assetsClusterMonitoringOperatorServiceYaml, map[string]*bintree{}},
 		}},
