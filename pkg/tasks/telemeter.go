@@ -129,22 +129,22 @@ func (t *TelemeterClientTask) create() error {
 		if proxyCM != nil {
 			proxyCM, err := t.factory.TelemeterConfigmapHash(proxyCM)
 			if err != nil {
-				// TODO: if the error is returned "has no data", we should just continue.
 				return errors.Wrap(err, "failed to initiliaze trusted-ca-bundle-<hash> ConfigMap")
 			}
+			// In the case when there is no data but the ConfigMap is there, we just continue.
+			// We will catch this on the next loop.
+			if proxyCM != nil {
+				err = t.deleteOldTelemeterConfigMaps(string(proxyCM.Labels["monitoring.openshift.io/hash"]))
+				if err != nil {
+					return errors.Wrap(err, "deleting old telemeter configmaps failed")
+				}
 
-			err = t.deleteOldTelemeterConfigMaps(string(proxyCM.Labels["monitoring.openshift.io/hash"]))
-			if err != nil {
+				err = t.client.CreateOrUpdateConfigMap(proxyCM)
+				if err != nil {
+					return errors.Wrap(err, "reconciling Telemeter trusted-ca-bundle-<hash> ConfigMap failed")
+				}
 
-				return errors.Wrap(err, "deleting old telemeter configmaps failed")
 			}
-
-			err = t.client.CreateOrUpdateConfigMap(proxyCM)
-			if err != nil {
-
-				return errors.Wrap(err, "reconciling Telemeter trusted-ca-bundle-<hash> ConfigMap failed")
-			}
-
 		}
 		dep, err := t.factory.TelemeterClientDeployment(proxyCM)
 		if err != nil {

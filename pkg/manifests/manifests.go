@@ -2093,21 +2093,18 @@ func NewSecurityContextConstraints(manifest io.Reader) (*securityv1.SecurityCont
 	return &s, nil
 }
 
+// TelemeterConfigmapHash copies the CA Bundle ConfigMap to new CM but
+// changes name to append the hash. "ca-bundle.crt" is the key that
+// contains the CA bundle.
 func (f *Factory) TelemeterConfigmapHash(caBundleCM *v1.ConfigMap) (*v1.ConfigMap, error) {
-	// Copy the CA Bundle ConfigMap to new CM but change name to append the hash.
-	// ca-bundle.crt is the key that.
-
-	data := make(map[string]string)
-	r := newErrMapReader(data)
-
-	for k, v := range caBundleCM.Data {
-		data[k] = v
-	}
-
-	var caBundle = r.value("ca-bundle.crt")
-	if r.Error() != nil {
-		// TODO: Should we reuturn a NotExists error here instead, so we can check against that and continue.
-		return nil, errors.Wrap(r.err, "value not found in extension api server authentication configmap")
+	caBundle, ok := caBundleCM.Data["ca-bundle.crt"]
+	if !ok {
+		// We return here instead of erroring out as we need
+		// "ca-bundle.crt" to be there. This can mean that
+		// the CA was not propagated yet. In that case we
+		// will catch this on next sync loop.
+		// TODO: Should we log error here?
+		return nil, nil
 	}
 
 	h := fnv.New64()
