@@ -1,4 +1,5 @@
 local k = import 'ksonnet/ksonnet.beta.3/k.libsonnet';
+local configmap = k.core.v1.configMap;
 local removeLimits = (import 'remove-limits.libsonnet').removeLimits;
 local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
            (import 'kube-prometheus/kube-prometheus-anti-affinity.libsonnet') +
@@ -85,6 +86,12 @@ local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
                    'openshift-etcd',
                  ],
                },
+             },
+             telemeterClient+:: {
+                trustedCaBundle:
+                  configmap.new('telemeter-trusted-ca-bundle', { 'ca-bundle.crt': '' }) +
+                  configmap.mixin.metadata.withNamespace($._config.namespace) +
+                  configmap.mixin.metadata.withLabels({ 'config.openshift.io/inject-trusted-cabundle': 'true' }),
              },
            } +
            (import 'rules.jsonnet') +
