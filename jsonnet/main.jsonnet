@@ -1,3 +1,4 @@
+local k = import 'ksonnet/ksonnet.beta.3/k.libsonnet';
 local removeLimits = (import 'remove-limits.libsonnet').removeLimits;
 local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
            (import 'kube-prometheus/kube-prometheus-anti-affinity.libsonnet') +
