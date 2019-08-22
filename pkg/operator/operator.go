@@ -43,7 +43,7 @@ const (
 	kubeletServingCAConfigMap  = "openshift-config-managed/kubelet-serving-ca"
 	prometheusAdapterTLSSecret = "openshift-monitoring/prometheus-adapter-tls"
 	etcdClientCAConfigMap      = "openshift-config/etcd-metrics-serving-ca"
-	trustCABundleConfigMap     = "openshift-config/trusted-ca-bundle"
+	telemeterCABundleConfigMap = "openshift-monitoring/telemeter-trusted-ca-bundle"
 )
 
 type Operator struct {
@@ -231,7 +231,7 @@ func (o *Operator) handleEvent(obj interface{}) {
 	case kubeletServingCAConfigMap:
 	case prometheusAdapterTLSSecret:
 	case etcdClientCAConfigMap:
-	case trustCABundleConfigMap:
+	case telemeterCABundleConfigMap:
 	default:
 		klog.V(5).Infof("ConfigMap or Secret (%s) not triggering an update.", key)
 		return
