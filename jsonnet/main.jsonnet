@@ -45,12 +45,6 @@ local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
            } +
            (import 'telemeter-client/client.libsonnet') +
            {
-             // This is for the additional trust CA bundle
-             configMap:
-               local configmap = k.core.v1.configMap;
-               configmap.new('telemeter-trusted-ca-bundle', { 'ca-bundle.crt': '' }) +
-               configmap.mixin.metadata.withNamespace($._config.namespace) +
-               configmap.mixin.metadata.withLabels({ 'config.openshift.io/inject-trusted-cabundle': 'true' }),
 
              _config+:: {
                imageRepos+:: {

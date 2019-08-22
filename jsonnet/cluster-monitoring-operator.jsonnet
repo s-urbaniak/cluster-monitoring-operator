@@ -60,6 +60,12 @@ local k = import 'ksonnet/ksonnet.beta.3/k.libsonnet';
       clusterRole.mixin.metadata.withName('cluster-monitoring-view') +
       clusterRole.withRules(rules),
 
+    // This is for the additional trust CA bundle
+    telemeterConfigMap:
+      local configmap = k.core.v1.configMap;
+      configmap.new('telemeter-trusted-ca-bundle', { 'ca-bundle.crt': '' }) +
+      configmap.mixin.metadata.withNamespace($._config.namespace) +
+      configmap.mixin.metadata.withLabels({ 'config.openshift.io/inject-trusted-cabundle': 'true' }),
 
   },
 }
