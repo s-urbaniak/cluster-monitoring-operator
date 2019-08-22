@@ -18,7 +18,6 @@ import (
 	"github.com/openshift/cluster-monitoring-operator/pkg/client"
 	"github.com/openshift/cluster-monitoring-operator/pkg/manifests"
 	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,7 +49,7 @@ func (t *TelemeterClientTask) create() error {
 		return errors.Wrap(err, "initializing Telemeter Client serving certs CA Bundle ConfigMap failed")
 	}
 
-	err = t.client.CreateIfNotExistConfigMap(cacm)
+	_, err = t.client.CreateIfNotExistConfigMap(cacm)
 	if err != nil {
 		return errors.Wrap(err, "creating Telemeter Client serving certs CA Bundle ConfigMap failed")
 	}
@@ -114,39 +113,35 @@ func (t *TelemeterClientTask) create() error {
 	if err != nil {
 		return errors.Wrap(err, "reconciling Telemeter client Secret failed")
 	}
+
 	{
-		// We want to rollout a new deployment of telemeter whenever the configmap telemeter-trusted-ca-bundle is updated.
-		// Because we react on all events in the same way, we cannot know when the CA TLS actually
-		// changes, so we do a hash style based rollout, similiar to the prometheus-adapter does.
-		proxyCM, err := t.client.GetConfigmap("openshift-monitoring", "telemeter-trusted-ca-bundle")
+		// Create trusted CA bundle ConfigMap.
+		trustedCA, err := t.factory.TelemeterTrustedCABundle()
 		if err != nil {
-			// Sometimes the ConfigMap might not be created already, if that is the case we should not
-			// error out.
-			if !apierrors.IsNotFound(err) {
-				return errors.Wrap(err, "failed to get telemeter-trusted-ca-bundle ConfigMap")
-			}
+			return errors.Wrap(err, "initializing Cluster Monitoring Operator Telemeter CA bundle ConfigMap failed")
 		}
-		if proxyCM != nil {
-			proxyCM, err := t.factory.TelemeterConfigmapHash(proxyCM)
+
+		trustedCA, err = t.client.CreateIfNotExistConfigMap(trustedCA)
+		if err != nil {
+			return errors.Wrap(err, "creating Cluster Monitoring Operator ConfigMap failed")
+		}
+
+		err = t.deleteOldTelemeterConfigMaps(string(trustedCA.Labels["monitoring.openshift.io/hash"]))
+		if err != nil {
+			return errors.Wrap(err, "deleting old telemeter configmaps failed")
+		}
+
+		// In the case when there is no data but the ConfigMap is there, we just continue.
+		// We will catch this on the next loop.
+		trustedCA = t.factory.HashTrustedCA(trustedCA, "telemeter")
+		if trustedCA != nil {
+			err = t.client.CreateOrUpdateConfigMap(trustedCA)
 			if err != nil {
-				return errors.Wrap(err, "failed to initialize telemeter-trusted-ca-bundle-<hash> ConfigMap")
-			}
-			// In the case when there is no data but the ConfigMap is there, we just continue.
-			// We will catch this on the next loop.
-			if proxyCM != nil {
-				err = t.deleteOldTelemeterConfigMaps(string(proxyCM.Labels["monitoring.openshift.io/hash"]))
-				if err != nil {
-					return errors.Wrap(err, "deleting old telemeter configmaps failed")
-				}
-
-				err = t.client.CreateOrUpdateConfigMap(proxyCM)
-				if err != nil {
-					return errors.Wrap(err, "reconciling Telemeter telemeter-trusted-ca-bundle-<hash> ConfigMap failed")
-				}
-
+				return errors.Wrap(err, "reconciling Telemeter telemeter-trusted-ca-bundle-<hash> ConfigMap failed")
 			}
 		}
-		dep, err := t.factory.TelemeterClientDeployment(proxyCM)
+
+		dep, err := t.factory.TelemeterClientDeployment(trustedCA)
 		if err != nil {
 			return errors.Wrap(err, "initializing Telemeter client Deployment failed")
 		}

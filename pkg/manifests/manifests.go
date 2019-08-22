@@ -16,6 +16,7 @@ package manifests
 
 import (
 	"bytes"
+
 	// #nosec
 	"crypto/sha1"
 	"encoding/base64"
@@ -131,7 +132,6 @@ var (
 	ClusterMonitoringOperatorService        = "assets/cluster-monitoring-operator/service.yaml"
 	ClusterMonitoringOperatorServiceMonitor = "assets/cluster-monitoring-operator/service-monitor.yaml"
 	ClusterMonitoringClusterRole            = "assets/cluster-monitoring-operator/cluster-role.yaml"
-	ClusterMonitoringTelemeterConfigMap     = "assets/cluster-monitoring-operator/telemeter-config-map.yaml"
 
 	TelemeterClientClusterRole            = "assets/telemeter-client/cluster-role.yaml"
 	TelemeterClientClusterRoleBinding     = "assets/telemeter-client/cluster-role-binding.yaml"
@@ -142,6 +142,7 @@ var (
 	TelemeterClientServiceAccount         = "assets/telemeter-client/service-account.yaml"
 	TelemeterClientServiceMonitor         = "assets/telemeter-client/service-monitor.yaml"
 	TelemeterClientServingCertsCABundle   = "assets/telemeter-client/serving-certs-c-a-bundle.yaml"
+	TelemeterTrustedCABundle              = "assets/telemeter-client/trusted-ca-bundle.yaml"
 )
 
 var (
@@ -1388,15 +1389,6 @@ func (f *Factory) ClusterMonitoringClusterRole() (*rbacv1.ClusterRole, error) {
 	return cr, nil
 }
 
-func (f *Factory) ClusterMonitoringOperatorTelemeterConfigMap() (*v1.ConfigMap, error) {
-	cm, err := f.NewConfigMap(MustAssetReader(ClusterMonitoringTelemeterConfigMap))
-	if err != nil {
-		return nil, err
-	}
-
-	return cm, nil
-}
-
 func (f *Factory) ClusterMonitoringOperatorService() (*v1.Service, error) {
 	s, err := f.NewService(MustAssetReader(ClusterMonitoringOperatorService))
 	if err != nil {
@@ -1696,6 +1688,15 @@ func (f *Factory) NewClusterRoleBinding(manifest io.Reader) (*rbacv1.ClusterRole
 
 func (f *Factory) NewClusterRole(manifest io.Reader) (*rbacv1.ClusterRole, error) {
 	return NewClusterRole(manifest)
+}
+
+func (f *Factory) TelemeterTrustedCABundle() (*v1.ConfigMap, error) {
+	cm, err := f.NewConfigMap(MustAssetReader(TelemeterTrustedCABundle))
+	if err != nil {
+		return nil, err
+	}
+
+	return cm, nil
 }
 
 // TelemeterClientServingCertsCABundle generates a new servinc certs CA bundle ConfigMap for TelemeterClient.
@@ -2094,18 +2095,21 @@ func NewSecurityContextConstraints(manifest io.Reader) (*securityv1.SecurityCont
 	return &s, nil
 }
 
-// TelemeterConfigmapHash copies the CA Bundle ConfigMap to new CM but
-// changes name to append the hash. "ca-bundle.crt" is the key that
-// contains the CA bundle.
-func (f *Factory) TelemeterConfigmapHash(caBundleCM *v1.ConfigMap) (*v1.ConfigMap, error) {
+// HashTrustedCA synthesizes a configmap just by copying "ca-bundle.crt" from the given configmap
+// and naming it by hashing the contents of "ca-bundle.crt".
+// It adds "monitoring.openshift.io/name" and "monitoring.openshift.io/hash" labels.
+// Any other labels from the given configmap are discarded.
+//
+// It returns nil, if the given configmap does not contain the "ca-bundle.crt" the data key
+// or data is empty string.
+func (f *Factory) HashTrustedCA(caBundleCM *v1.ConfigMap, prefix string) *v1.ConfigMap {
 	caBundle, ok := caBundleCM.Data["ca-bundle.crt"]
-	if !ok {
+	if !ok || caBundle == "" {
 		// We return here instead of erroring out as we need
 		// "ca-bundle.crt" to be there. This can mean that
 		// the CA was not propagated yet. In that case we
 		// will catch this on next sync loop.
-		// TODO: Should we log error here?
-		return nil, nil
+		return nil
 	}
 
 	h := fnv.New64()
@@ -2115,15 +2119,14 @@ func (f *Factory) TelemeterConfigmapHash(caBundleCM *v1.ConfigMap) (*v1.ConfigMa
 	return &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "openshift-monitoring",
-			Name:      fmt.Sprintf("telemeter-trusted-ca-bundle-%s", hash),
+			Name:      fmt.Sprintf("%s-trusted-ca-bundle-%s", prefix, hash),
 			Labels: map[string]string{
-				"monitoring.openshift.io/name": "telemeter",
+				"monitoring.openshift.io/name": prefix,
 				"monitoring.openshift.io/hash": hash,
 			},
 		},
 		Data: map[string]string{
 			"ca-bundle.crt": caBundle,
 		},
-	}, nil
-
+	}
 }

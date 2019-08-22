@@ -58,16 +58,6 @@ func (t *ClusterMonitoringOperatorTask) Run() error {
 		return errors.Wrap(err, "initializing Cluster Monitoring Operator ServiceMonitor failed")
 	}
 
-	if err := t.client.CreateOrUpdateServiceMonitor(smcmo); err != nil {
-		return errors.Wrap(err, "reconciling Cluster Monitoring Operator ServiceMonitor failed")
-	}
-
-	// Create trusted CA bundle ConfigMap.
-	cm, err := t.factory.ClusterMonitoringOperatorTelemeterConfigMap()
-	if err != nil {
-		return errors.Wrap(err, "initializing Cluster Monitoring Operator Telemeter CA bundle ConfigMap failed")
-	}
-
-	err = t.client.CreateIfNotExistConfigMap(cm)
-	return errors.Wrap(err, "creating Cluster Monitoring Operator ConfigMap failed")
+	err = t.client.CreateOrUpdateServiceMonitor(smcmo)
+	return errors.Wrap(err, "reconciling Cluster Monitoring Operator ServiceMonitor failed")
 }

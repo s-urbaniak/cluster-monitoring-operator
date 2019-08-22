@@ -15,18 +15,27 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/openshift/cluster-monitoring-operator/pkg/manifests"
-
-	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/openshift/cluster-monitoring-operator/pkg/manifests"
+	"github.com/pkg/errors"
 )
 
-func TestTelemeterCARotation(t *testing.T) {
-	var lastErr error
+func TestTelemeterTrustedCA(t *testing.T) {
+	var (
+		factory = manifests.NewFactory("openshift-monitoring", nil)
+		newCM   *v1.ConfigMap
+		lastErr error
+	)
+
+	fmt.Println("waiting for telemeter client")
+
 	// Wait for Telemeter
 	err := wait.Poll(time.Second, 5*time.Minute, func() (bool, error) {
 		_, err := f.KubeClient.AppsV1().Deployments(f.Ns).Get("telemeter-client", metav1.GetOptions{})
@@ -43,26 +52,26 @@ func TestTelemeterCARotation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// This ConfigMap is already created by CMO in the first task.
-	cm, err := f.KubeClient.CoreV1().ConfigMaps(f.Ns).Get("telemeter-trusted-ca-bundle", metav1.GetOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Wait for the new ConfigMap to be created
+	err = wait.Poll(time.Second, 5*time.Minute, func() (bool, error) {
+		cm, err := f.KubeClient.CoreV1().ConfigMaps(f.Ns).Get("telemeter-trusted-ca-bundle", metav1.GetOptions{})
+		lastErr = errors.Wrap(err, "getting new CA ConfigMap failed")
+		if err != nil {
+			return false, nil
+		}
 
-	// Simulate rotation by simply adding a newline to existing certs.
-	// This change will be propagated to the cluster monitoring operator,
-	// causing a new CM to be created.
-	dataContent := "foo-bar"
-	data := "ca-bundle.crt"
-	cm.Data[data] = cm.Data[data] + dataContent
-	_, err = f.KubeClient.CoreV1().ConfigMaps(f.Ns).Update(cm)
-	if err != nil {
-		t.Fatal(err)
-	}
+		newCM = factory.HashTrustedCA(cm, "telemeter")
+		if newCM == nil {
+			lastErr = errors.New("no trusted CA bundle data available")
+			return false, nil
+		}
 
-	factory := manifests.NewFactory("openshift-monitoring", nil)
-	newCM, err := factory.TelemeterConfigmapHash(cm)
+		return true, nil
+	})
 	if err != nil {
+		if err == wait.ErrWaitTimeout && lastErr != nil {
+			err = lastErr
+		}
 		t.Fatal(err)
 	}
 
@@ -82,20 +91,26 @@ func TestTelemeterCARotation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Get telemeter-client deployment and make sure it has a volumemounted.
-	// TODO: We should check the volumemount name matches the CM name.
+	// Get telemeter-client deployment and make sure it has a volume mounted.
 	err = wait.Poll(time.Second, 5*time.Minute, func() (bool, error) {
 		d, err := f.KubeClient.AppsV1().Deployments(f.Ns).Get("telemeter-client", metav1.GetOptions{})
 		lastErr = errors.Wrap(err, "getting telemeter deployment failed")
 		if err != nil {
 			return false, nil
 		}
+
 		if len(d.Spec.Template.Spec.Containers[0].VolumeMounts) == 0 {
-			// TODO: Should we instead add to the lastErr
 			return false, errors.New("Could not find any VolumeMounts, expected at least 1")
 		}
 
-		return true, nil
+		for _, mount := range d.Spec.Template.Spec.Containers[0].VolumeMounts {
+			if mount.Name == "telemeter-trusted-ca-bundle" {
+				return true, nil
+			}
+		}
+
+		lastErr = fmt.Errorf("no volume %s mounted", newCM.Name)
+		return false, nil
 	})
 	if err != nil {
 		if err == wait.ErrWaitTimeout && lastErr != nil {
@@ -103,9 +118,4 @@ func TestTelemeterCARotation(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
-
-	// TODO: Should we add a test for the following.
-	// If we update the original ConfigMap again we should see:
-	// - the old hashed CM deleted
-	// - new CM created
 }
