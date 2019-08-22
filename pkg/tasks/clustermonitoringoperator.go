@@ -63,9 +63,9 @@ func (t *ClusterMonitoringOperatorTask) Run() error {
 	}
 
 	// Create trusted CA bundle ConfigMap.
-	cm, err := t.factory.ClusterMonitoringOperatorConfigMap()
+	cm, err := t.factory.ClusterMonitoringOperatorTelemeterConfigMap()
 	if err != nil {
-		return errors.Wrap(err, "initializing Cluster Monitoring Operator CA bundle Config Map failed")
+		return errors.Wrap(err, "initializing Cluster Monitoring Operator Telemeter CA bundle ConfigMap failed")
 	}
 
 	err = t.client.CreateIfNotExistConfigMap(cm)

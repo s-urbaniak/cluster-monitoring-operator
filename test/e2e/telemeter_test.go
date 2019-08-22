@@ -44,7 +44,7 @@ func TestTelemeterCARotation(t *testing.T) {
 	}
 
 	// This ConfigMap is already created by CMO in the first task.
-	cm, err := f.KubeClient.CoreV1().ConfigMaps(f.Ns).Get("trusted-ca-bundle", metav1.GetOptions{})
+	cm, err := f.KubeClient.CoreV1().ConfigMaps(f.Ns).Get("telemeter-trusted-ca-bundle", metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

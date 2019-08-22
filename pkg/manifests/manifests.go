@@ -131,7 +131,7 @@ var (
 	ClusterMonitoringOperatorService        = "assets/cluster-monitoring-operator/service.yaml"
 	ClusterMonitoringOperatorServiceMonitor = "assets/cluster-monitoring-operator/service-monitor.yaml"
 	ClusterMonitoringClusterRole            = "assets/cluster-monitoring-operator/cluster-role.yaml"
-	ClusterMonitoringConfigMap              = "assets/cluster-monitoring-operator/config-map.yaml"
+	ClusterMonitoringTelemeterConfigMap     = "assets/cluster-monitoring-operator/telemeter-config-map.yaml"
 
 	TelemeterClientClusterRole            = "assets/telemeter-client/cluster-role.yaml"
 	TelemeterClientClusterRoleBinding     = "assets/telemeter-client/cluster-role-binding.yaml"
@@ -1388,8 +1388,8 @@ func (f *Factory) ClusterMonitoringClusterRole() (*rbacv1.ClusterRole, error) {
 	return cr, nil
 }
 
-func (f *Factory) ClusterMonitoringOperatorConfigMap() (*v1.ConfigMap, error) {
-	cm, err := f.NewConfigMap(MustAssetReader(ClusterMonitoringConfigMap))
+func (f *Factory) ClusterMonitoringOperatorTelemeterConfigMap() (*v1.ConfigMap, error) {
+	cm, err := f.NewConfigMap(MustAssetReader(ClusterMonitoringTelemeterConfigMap))
 	if err != nil {
 		return nil, err
 	}
@@ -1798,7 +1798,7 @@ func (f *Factory) TelemeterClientDeployment(proxyCABundleCM *v1.ConfigMap) (*app
 	d.Namespace = f.namespace
 	if proxyCABundleCM != nil {
 		yes := true
-		trustedCABundle := "trusted-ca-bundle"
+		trustedCABundle := "telemeter-trusted-ca-bundle"
 		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts,
 			v1.VolumeMount{
 				Name:      trustedCABundle,
@@ -2115,7 +2115,7 @@ func (f *Factory) TelemeterConfigmapHash(caBundleCM *v1.ConfigMap) (*v1.ConfigMa
 	return &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "openshift-monitoring",
-			Name:      fmt.Sprintf("trusted-ca-bundle-%s", hash),
+			Name:      fmt.Sprintf("telemeter-trusted-ca-bundle-%s", hash),
 			Labels: map[string]string{
 				"monitoring.openshift.io/name": "telemeter",
 				"monitoring.openshift.io/hash": hash,
