@@ -5,5 +5,5 @@ kind: ConfigMap
 metadata:
   labels:
     config.openshift.io/inject-trusted-cabundle: "true"
-  name: trusted-ca-bundle
+  name: telemeter-trusted-ca-bundle
   namespace: openshift-monitoring
