@@ -44,6 +44,13 @@ local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
            } +
            (import 'telemeter-client/client.libsonnet') +
            {
+             // This is for the additional trust CA bundle
+             configMap:
+               local configmap = k.core.v1.configMap;
+               configmap.new('telemeter-trusted-ca-bundle', { 'ca-bundle.crt': '' }) +
+               configmap.mixin.metadata.withNamespace($._config.namespace) +
+               configmap.mixin.metadata.withLabels({ 'config.openshift.io/inject-trusted-cabundle': 'true' }),
+
              _config+:: {
                imageRepos+:: {
                  openshiftOauthProxy: 'quay.io/openshift/oauth-proxy',
@@ -115,7 +122,7 @@ local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
   grafanaDashboards:: {
     [k]: d[k]
     for k in std.objectFields(d)
-                         // This array must be sorted for `std.setMember` to work.
+    // This array must be sorted for `std.setMember` to work.
     if !std.setMember(k, ['apiserver.json', 'controller-manager.json', 'kubelet.json', 'nodes.json', 'persistentvolumesusage.json', 'pods.json', 'proxy.json', 'scheduler.json', 'statefulset.json'])
   },
 } + {
