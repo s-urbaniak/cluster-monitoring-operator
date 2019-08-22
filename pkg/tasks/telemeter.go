@@ -115,21 +115,21 @@ func (t *TelemeterClientTask) create() error {
 		return errors.Wrap(err, "reconciling Telemeter client Secret failed")
 	}
 	{
-		// We want to rollout a new deployment of telemeter whenever the configmap trusted-ca-bundle is updated.
+		// We want to rollout a new deployment of telemeter whenever the configmap telemeter-trusted-ca-bundle is updated.
 		// Because we react on all events in the same way, we cannot know when the CA TLS actually
 		// changes, so we do a hash style based rollout, similiar to the prometheus-adapter does.
-		proxyCM, err := t.client.GetConfigmap("openshift-monitoring", "trusted-ca-bundle")
+		proxyCM, err := t.client.GetConfigmap("openshift-monitoring", "telemeter-trusted-ca-bundle")
 		if err != nil {
 			// Sometimes the ConfigMap might not be created already, if that is the case we should not
 			// error out.
 			if !apierrors.IsNotFound(err) {
-				return errors.Wrap(err, "failed to get trusted-ca-bundle ConfigMap")
+				return errors.Wrap(err, "failed to get telemeter-trusted-ca-bundle ConfigMap")
 			}
 		}
 		if proxyCM != nil {
 			proxyCM, err := t.factory.TelemeterConfigmapHash(proxyCM)
 			if err != nil {
-				return errors.Wrap(err, "failed to initiliaze trusted-ca-bundle-<hash> ConfigMap")
+				return errors.Wrap(err, "failed to initialize telemeter-trusted-ca-bundle-<hash> ConfigMap")
 			}
 			// In the case when there is no data but the ConfigMap is there, we just continue.
 			// We will catch this on the next loop.
@@ -141,7 +141,7 @@ func (t *TelemeterClientTask) create() error {
 
 				err = t.client.CreateOrUpdateConfigMap(proxyCM)
 				if err != nil {
-					return errors.Wrap(err, "reconciling Telemeter trusted-ca-bundle-<hash> ConfigMap failed")
+					return errors.Wrap(err, "reconciling Telemeter telemeter-trusted-ca-bundle-<hash> ConfigMap failed")
 				}
 
 			}
