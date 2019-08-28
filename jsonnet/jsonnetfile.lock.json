@@ -28,7 +28,7 @@
                     "subdir": ""
                 }
             },
-            "version": "3a6af8f5e9b16441308bcd57ad3f5bcaa03d1d68"
+            "version": "e3d6d8ebb1789af0e17fb1f60171aaf64926a3a1"
         },
         {
             "name": "grafonnet",
@@ -108,7 +108,7 @@
                     "subdir": "lib/promgrafonnet"
                 }
             },
-            "version": "193d4934f85c9ff596d1f3e4dce7bd2da62a4d5e"
+            "version": "e3d6d8ebb1789af0e17fb1f60171aaf64926a3a1"
         },
         {
             "name": "telemeter-client",
