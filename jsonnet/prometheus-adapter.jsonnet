@@ -10,6 +10,40 @@ local tmpVolumeName = 'volume-directive-shadow';
 local tlsVolumeName = 'kube-state-metrics-tls';
 
 {
+  _config+:: {
+    prometheusAdapter+:: {
+      config: |||
+        resourceRules:
+          cpu:
+            containerQuery: sum(rate(container_cpu_usage_seconds_total{<<.LabelMatchers>>,container_name!="POD",container_name!="",pod_name!=""}[1m])) by (<<.GroupBy>>)
+            nodeQuery: sum(1 - rate(node_cpu_seconds_total{mode="idle"}[1m]) * on(namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:{<<.LabelMatchers>>}) by (<<.GroupBy>>)
+            resources:
+              overrides:
+                node:
+                  resource: node
+                namespace:
+                  resource: namespace
+                pod_name:
+                  resource: pod
+            containerLabel: container_name
+          memory:
+            containerQuery: sum(container_memory_working_set_bytes{<<.LabelMatchers>>,container_name!="POD",container_name!="",pod_name!=""}) by (<<.GroupBy>>)
+            nodeQuery: sum(node_memory_MemTotal_bytes{job="node-exporter",<<.LabelMatchers>>} - (node_memory_MemFree_bytes{job="node-exporter",<<.LabelMatchers>>} + node_memory_Cached_bytes{job="node-exporter",<<.LabelMatchers>>} + node_memory_Buffers_bytes{job="node-exporter",<<.LabelMatchers>>})) by (<<.GroupBy>>)
+            resources:
+              overrides:
+                instance:
+                  resource: node
+                namespace:
+                  resource: namespace
+                pod_name:
+                  resource: pod
+            containerLabel: container_name
+          window: 1m
+      |||,
+    },
+  },
+} +
+{
   prometheusAdapter+:: {
     local tlsVolumeName = 'prometheus-adapter-tls',
 
