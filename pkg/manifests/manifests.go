@@ -95,6 +95,7 @@ var (
 	PrometheusK8sEtcdServiceMonitor       = "assets/prometheus-k8s/service-monitor-etcd.yaml"
 	PrometheusK8sServingCertsCABundle     = "assets/prometheus-k8s/serving-certs-ca-bundle.yaml"
 	PrometheusK8sKubeletServingCABundle   = "assets/prometheus-k8s/kubelet-serving-ca-bundle.yaml"
+	PrometheusK8sTrustedCABundle          = "assets/prometheus-k8s/trusted-ca-bundle.yaml"
 
 	PrometheusAdapterAPIService                         = "assets/prometheus-adapter/api-service.yaml"
 	PrometheusAdapterClusterRole                        = "assets/prometheus-adapter/cluster-role.yaml"
@@ -811,7 +812,16 @@ func (f *Factory) SharingConfig(promHost, amHost, grafanaHost *url.URL) *v1.Conf
 	}
 }
 
-func (f *Factory) PrometheusK8s(host string) (*monv1.Prometheus, error) {
+func (f *Factory) PrometheusK8sTrustedCABundle() (*v1.ConfigMap, error) {
+	cm, err := f.NewConfigMap(MustAssetReader(PrometheusK8sTrustedCABundle))
+	if err != nil {
+		return nil, err
+	}
+
+	return cm, nil
+}
+
+func (f *Factory) PrometheusK8s(host string, trustedCABundleCM *v1.ConfigMap) (*monv1.Prometheus, error) {
 	p, err := f.NewPrometheus(MustAssetReader(PrometheusK8s))
 	if err != nil {
 		return nil, err
@@ -884,6 +894,24 @@ func (f *Factory) PrometheusK8s(host string) (*monv1.Prometheus, error) {
 	}
 	if f.config.HTTPConfig.NoProxy != "" {
 		setEnv("NO_PROXY", f.config.HTTPConfig.NoProxy)
+	}
+
+	if trustedCABundleCM != nil {
+		volumeName := "prometheus-trusted-ca-bundle"
+		volumePath := "/etc/pki/ca-trust/extracted/pem/"
+		volume := trustedCABundleVolume(trustedCABundleCM.Name, volumeName)
+		volume.VolumeSource.ConfigMap.Items = append(volume.VolumeSource.ConfigMap.Items, v1.KeyToPath{
+			Key:  "ca-bundle.crt",
+			Path: "tls-ca-bundle.pem",
+		})
+		p.Spec.Volumes = append(p.Spec.Volumes, volume)
+
+		for in, container := range p.Spec.Containers {
+			//if container.Name == "prometheus-proxy" || container.Name == "prometheus" {
+			if container.Name == "prometheus-proxy" {
+				p.Spec.Containers[in].VolumeMounts = append(container.VolumeMounts, trustedCABundleVolumeMount(volumeName, volumePath))
+			}
+		}
 	}
 
 	return p, nil
