@@ -899,16 +899,10 @@ func (f *Factory) PrometheusK8s(host string, trustedCABundleCM *v1.ConfigMap) (*
 	if trustedCABundleCM != nil {
 		volumeName := "prometheus-trusted-ca-bundle"
 		volumePath := "/etc/pki/ca-trust/extracted/pem/"
-		volume := trustedCABundleVolume(trustedCABundleCM.Name, volumeName)
-		volume.VolumeSource.ConfigMap.Items = append(volume.VolumeSource.ConfigMap.Items, v1.KeyToPath{
-			Key:  "ca-bundle.crt",
-			Path: "tls-ca-bundle.pem",
-		})
-		p.Spec.Volumes = append(p.Spec.Volumes, volume)
+		p.Spec.Volumes = append(p.Spec.Volumes, trustedCABundleVolume(trustedCABundleCM.Name, volumeName))
 
 		for in, container := range p.Spec.Containers {
-			//if container.Name == "prometheus-proxy" || container.Name == "prometheus" {
-			if container.Name == "prometheus-proxy" {
+			if container.Name == "prometheus-proxy" || container.Name == "prometheus" {
 				p.Spec.Containers[in].VolumeMounts = append(container.VolumeMounts, trustedCABundleVolumeMount(volumeName, volumePath))
 			}
 		}
