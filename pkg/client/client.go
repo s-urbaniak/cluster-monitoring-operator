@@ -1103,14 +1103,16 @@ func (c *Client) CreateOrUpdateClusterRoleBinding(crb *rbacv1.ClusterRoleBinding
 		return errors.Wrap(err, "retrieving ClusterRoleBinding object failed")
 	}
 
-	changed := reflect.DeepEqual(crb.RoleRef, existing.RoleRef)
-	changed = changed || reflect.DeepEqual(crb.Subjects, existing.Subjects)
-	changed = changed || reflect.DeepEqual(crb.Labels, existing.Labels)
-	changed = changed || reflect.DeepEqual(crb.Annotations, existing.Annotations)
-
-	if !changed {
+	if reflect.DeepEqual(crb.RoleRef, existing.RoleRef) &&
+		reflect.DeepEqual(crb.Subjects, existing.Subjects) &&
+		reflect.DeepEqual(crb.Labels, existing.Labels) {
 		return nil
 	}
+
+	// TODO(paulfantom): currently, we don't set our own annotations for cluster role bindings.
+	// This needs a more elaborated merging logic once we do.
+	// See discussion from https://github.com/openshift/cluster-monitoring-operator/pull/932#discussion_r490089300
+	crb.Annotations = existing.Annotations
 
 	err = crbClient.Delete(context.TODO(), crb.Name, metav1.DeleteOptions{})
 	if err != nil {
